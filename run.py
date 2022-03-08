@@ -135,7 +135,7 @@ if __name__ == "__main__":
     print(80 * "=")
     print("INITIALIZING")
     print(80 * "=")
-    parser, embeddings, train_data, dev_data, test_data = load_and_preprocess_data(debug)
+    parser, embeddings, train_data, dev_data, test_data = load_and_preprocess_data(debug, preprocess=True)
 
     start = time.time()
     model = ParserModel(embeddings)
@@ -151,6 +151,12 @@ if __name__ == "__main__":
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     train(parser, train_data, dev_data, output_path, batch_size=1024, n_epochs=10, lr=0.0005)
+
+    # parser, embeddings, train_data, dev_data, test_data = load_and_preprocess_data(debug, preprocess=True)
+    # model = ParserModel(embeddings)
+    # parser.model = model
+    # output_dir = "results/20220223_013741/"
+    # output_path = output_dir + "model.weights"
 
     if not debug:
         print(80 * "=")

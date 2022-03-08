@@ -7,7 +7,7 @@ Sahil Chopra <schopra8@stanford.edu>
 """
 
 import time
-import os
+import os 
 import logging
 from collections import Counter
 from . general_utils import get_minibatches
@@ -200,7 +200,7 @@ class Parser(object):
                 return l0 + self.n_deprel if (l0 >= 0) and (l0 < self.n_deprel) else None
             else:
                 return None if len(buf) == 0 else self.n_trans - 1
-
+ 
     def create_instances(self, examples):
         all_instances = []
         succ = 0
@@ -267,9 +267,22 @@ class Parser(object):
                         if (self.with_punct) or (not punct(self.language, pos_str)):
                             UAS += 1 if pred_h == gold_h else 0
                             all_tokens += 1
-                prog.update(i + 1)
+            prog.update(i + 1)
         UAS /= all_tokens
         return UAS, dependencies
+
+
+class RLModelWrapper(object):
+    def __init__(self, parser):
+        self.parser = parser
+
+    def predict(self, state):
+        x = torch.from_numpy(x).long()
+        pred = self.parser.model(x)
+        pred = pred.detach().numpy()
+        pred = np.argmax(pred)
+        return pred
+
 
 
 class ModelWrapper(object):
@@ -353,7 +366,7 @@ def minibatches(data, batch_size):
     return get_minibatches([x, one_hot], batch_size)
 
 
-def load_and_preprocess_data(reduced=True):
+def load_and_preprocess_data(reduced=True, preprocess=False):
     config = Config()
 
     print("Loading data...",)
@@ -399,10 +412,11 @@ def load_and_preprocess_data(reduced=True):
     # pdb.set_trace()
     print("took {:.2f} seconds".format(time.time() - start))
 
-    # print("Preprocessing training data...",)
-    # start = time.time()
-    # train_examples = parser.create_instances(train_set)
-    # print("took {:.2f} seconds".format(time.time() - start))
+    if preprocess:
+        print("Preprocessing training data...",)
+        start = time.time()
+        train_set = parser.create_instances(train_set)
+        print("took {:.2f} seconds".format(time.time() - start))
 
     return parser, embeddings_matrix, train_set, dev_set, test_set,
 

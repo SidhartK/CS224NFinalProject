@@ -160,6 +160,12 @@ class ParserModel(nn.Module):
 
         ### END YOUR CODE
         return logits
+        
+    def forward_no_embed(self, X):
+        h = F.relu(torch.matmul(X, self.embed_to_hidden_weight) + self.embed_to_hidden_bias)
+        h = self.dropout(h)
+        logits = torch.matmul(h, self.hidden_to_logits_weight) + self.hidden_to_logits_bias
+        return logits
 
 
 if __name__ == "__main__":

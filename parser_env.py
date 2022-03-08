@@ -2,7 +2,7 @@ import numpy as np
 import gym
 from gym import spaces
 
-from utils.parser_utils import minibatches, load_and_preprocess_data, AverageMeter
+from utils.parser_utils import punct, minibatches, load_and_preprocess_data, AverageMeter
 from parser_transitions import PartialParse
 
 P_PREFIX = '<p>:'
@@ -17,7 +17,7 @@ class ParserEnv(gym.Env):
 	'''2D Navigation Environment Object Centric Graph Representation'''
 	metadata = {'render.modes': ['human']}
 
-	def __init__(self, dataset_type='train', reduced=True, seed=None):
+	def __init__(self, dataset_type='train', embeddings=None, reduced=False, seed=None):
 		# obj_set=[((0, 2), 0.5), ((1.2, 3.4), 0.2), ((5, 0, 1), ((2.3, 5.6), 0.6), ((4.1, 4.143), 0.139), ((5, 3.3), 0.26)], goal_set=[((8.2, 6.719), 1, 5), ((2, 8.3), 1, 12), ((7.2, 3.4), 0.5, 10)]):
 		super(ParserEnv, self).__init__()
 		assert(dataset_type in ['train', 'dev', 'test'])
@@ -25,13 +25,15 @@ class ParserEnv(gym.Env):
 		self._seed = seed
 		self.rng = np.random.default_rng(seed)
 
-		self.parser, self.embeddings, train_set, dev_set, test_set = load_and_preprocess_data(reduced)
+		self.parser, loaded_embeddings, train_set, dev_set, test_set = load_and_preprocess_data(reduced=reduced)
+		self.embeddings = embeddings if embeddings is not None else loaded_embeddings
 		self.dataset = train_set if dataset_type == 'train' else (dev_set if dataset_type == 'dev' else test_set)
 
 		self.ex_idx = 0
 		self.dataset_len = len(self.dataset)
 		self.ex = self.dataset[self.ex_idx]
 		n_words = len(self.ex['word']) - 1
+
 		self.sentence = [j + 1 for j in range(n_words)]
 		self.pp = PartialParse(self.sentence)
 
@@ -65,6 +67,7 @@ class ParserEnv(gym.Env):
 
 	def step(self, action):
 		legal_labels = self.parser.legal_labels(self.pp.stack, self.pp.buffer)
+		init_action = action
 		if legal_labels[action] == 0:
 			if legal_labels[2] != 0:
 				action = 2
@@ -72,7 +75,6 @@ class ParserEnv(gym.Env):
 				action = 1
 			else:
 				action = 0
-
 		transition = "S" if action == 2 else ("LA" if action == 0 else "RA")
 		self.pp.parse_step(transition)
 		head = [-1] * (len(self.ex['word']))
@@ -91,6 +93,7 @@ class ParserEnv(gym.Env):
 					all_tokens += 1
 		UAS = UAS/all_tokens if all_tokens > 0 else 0.0
 		reward = UAS - self.prev_UAS
+		self.prev_UAS = UAS
 			
 
 		state = self._get_cur_state()
@@ -110,8 +113,8 @@ if __name__ == '__main__':
 	env = ParserEnv()
 	time_steps = []
 	rewards = []
-	for i in range(10):
-		print("---------------------------------------------\n\n")
+	for i in range(10000):
+		# print("---------------------------------------------\n\n")
 		done = False
 		j = 0
 		env.reset()
@@ -121,11 +124,12 @@ if __name__ == '__main__':
 			obs, reward, done, _ = env.step(action)
 			j += 1
 			ep_rew += reward
-			print(f"Episode: {i}, Time Step: {j}, Action: {action}, Observation: {obs}, Reward: {reward}, Done: {done}")
+			# print(f"Episode: {i}, Time Step: {j}, Action: {action}, Observation: {obs}, Reward: {reward}, Done: {done}")
 			# if j > 100000:
 				# break
 		time_steps.append(j)
-		rewards.append(reward)
+		rewards.append(ep_rew)
+		print(f"Episode: {i}, Time Steps: {j}, Episode Reward: {ep_rew}")
 	print(f"Average time: {sum(time_steps)/len(time_steps)}")
 	print(f"Average total reward: {sum(rewards)/len(rewards)}")
 
